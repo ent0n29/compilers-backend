@@ -35,7 +35,7 @@ bool runOnBasicBlock(BasicBlock &B) {
             }   
         }
 
-        /* STRENGTH REDUCTION -> SHIFT >>2 FOR POWER OF 2 MULTIPLICATION*/
+        /* STRENGTH REDUCTION -> SHIFT <<2 FOR POWER OF 2 MULTIPLICATION*/
         if (auto *MulInst = dyn_cast<BinaryOperator>(&I)) {
             if (MulInst->getOpcode() == Instruction::Mul) {
                 Value *Op1 = MulInst->getOperand(0);
@@ -67,6 +67,41 @@ bool runOnBasicBlock(BasicBlock &B) {
                 MulInst->eraseFromParent();
 
                 return true;
+            }
+        }
+
+        /* SECOND ASSIGNMENT -> ADVANCED STRENGTH REDUCTION */
+        if (auto *MultInst = dyn_cast<BinaryOperator>(&I)) {
+            if (MultInst->getOpcode() == Instruction::Mul) {
+                Value *Op1 = MultInst->getOperand(0);
+                Value *Op2 = MultInst->getOperand(1);
+                ConstantInt *CI = nullptr;
+
+                // check for mul by 15 (2^4 - 1)
+                if (((CI == dyn_cast<ConstantInt>(Op1)) && CI->getValue() == 15) ||
+                    ((CI == dyn_cast<ConstantInt>(Op2)) && CI->getValue() == 15)) {
+                        // change x*15 to (x<<4) - x
+                        Value *Shifted = BinaryOperator::CreateShl(Op1, ConstantInt::get(CI->getType(), 4), "", MultInst);
+                        Instruction *Sub = BinaryOperator::CreateSub(Shifted, Op1, "", MultInst);
+                        MultInst->replaceAllUsesWith(Sub);
+                        MultInst->eraseFromParent();
+                        Modified = true;
+                }  
+            }
+        }
+        else if (auto *DivInst = dyn_cast<BinaryOperator>(&I)) {
+            if (DivInst->getOpcode() == Instruction::UDiv) {
+                Value *Op1 = DivInst->getOperand(0);
+                ConstantInt *CI = nullptr;
+
+                // check for division by 8 (2^3)
+                if ((CI = dyn_cast<ConstantInt>(DivInst->getOperand(1))) && CI->getValue() == 8) {
+                    // implement x/8 as x>>3
+                    Instruction *ShrInst = BinaryOperator::CreateLShr(Op1, ConstantInt::get(CI->getType(), 3), "", DivInst);
+                    DivInst->replaceAllUsesWith(ShrInst);
+                    DivInst->eraseFromParent();
+                    Modified = true;
+                }
             }
         }
     }
