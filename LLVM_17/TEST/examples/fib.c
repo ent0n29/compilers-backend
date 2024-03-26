@@ -1,4 +1,3 @@
-
 #include <stdarg.h>
 #include <stdio.h>
 
@@ -12,6 +11,7 @@ int printf(const char *format, ...) {
   return ret;
 }
 
+int memo[];
 
 int Fibonacci(const int n) {
   if (n == 0) {
@@ -23,5 +23,14 @@ int Fibonacci(const int n) {
     return 1;
   }
   printf("f(%d) = f(%d) + f(%d)", n, n - 1, n - 2);
-  return Fibonacci(n - 1) + Fibonacci(n - 2);
+  return dp(n, memo);
+}
+
+int dp(int i, int &memo){
+	if (i == 0 || i == 1)
+		return i;
+	if (memo[i] != -1)
+		return memo[i];
+	memo[i] = dp(i-2, memo) + dp(i-1, memo);
+	return memo[i];
 }
